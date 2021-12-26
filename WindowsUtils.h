@@ -108,4 +108,42 @@ namespace WindowsUtils
 
         return static_cast<Ret>(TrampolinePtr);
     }
+
+    // WIP
+    enum EInjectionMethod
+    {
+        RemoteThread
+    };
+    
+    template <typename Method>
+    bool InjectDll() {} // Empty Specialization
+
+    template <typename Method = EInjectionMethod::RemoteThread>
+    bool InjectDll(const wchar_t* ProcessName, const wchar_t* DllPath, )
+    {
+        DWORD  ProcessID = FindProcessID(ProcessName);
+        HANDLE ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessID);
+
+        if (ProcessHandle == nullptr)
+            return false;
+
+        void* AllocMemory = VirtualAlloc(ProcessHandle, strlen(DllPath) + 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+        if (AllocMemory == nullptr)
+            return false;
+
+        size_t BytesWriten;
+        if (WriteProcessMemory(ProcessID, AllocMemory, DllPath, strlen(DllPath) + 1, &BytesWriten) == false)
+            return false;
+
+        LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary("kernel32"), "LoadLibraryA");
+
+        DWORD ThreadID;
+        HANDLE ThreadHandle = CreateRemoteThread(ProcessID, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, nullptr, ThreadID);
+
+        if (ThreadHandle == nullptr)
+            return false;
+
+        return true;
+    }
 }
