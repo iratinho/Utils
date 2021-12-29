@@ -22,10 +22,19 @@ SOFTWARE.
 #include "Windows.h"
 #include <TlHelp32.h>
 #include <functional>
+#include <tchar.h>
 
 namespace WindowsUtils
 {
-    inline DWORD FindProcessID(const wchar_t* ProcessName)
+#ifdef UNICODE
+#define _strlen_(x) wcslen(x)
+#define _strcmp_(x, y) wcscmp(x, y)
+#else
+#define _strlen_(x) strlen(x)
+#define _strcmp_(x, y) strcmp(x, y)
+#endif
+    
+    inline DWORD FindProcessID(const TCHAR* ProcessName)
     {
         PROCESSENTRY32 ProcessEntry;
         ZeroMemory(&ProcessEntry, sizeof ProcessEntry);
@@ -37,18 +46,18 @@ namespace WindowsUtils
         {
             do
             {
-                if (!wcscmp(ProcessEntry.szExeFile, ProcessName))
+                if (!_strcmp_(ProcessEntry.szExeFile, ProcessName))
                 {
                     CloseHandle(ProcessSnapshot);
                     return ProcessEntry.th32ProcessID;
                 }
-            }             while (Process32Next(ProcessSnapshot, &ProcessEntry));
+            }while (Process32Next(ProcessSnapshot, &ProcessEntry));
         }
 
         return {};
     }
 
-    inline BYTE* FindModuleBaseAddress(DWORD ProcessID, const wchar_t* ModuleName)
+    inline BYTE* FindModuleBaseAddress(DWORD ProcessID, const TCHAR* ModuleName)
     {
         MODULEENTRY32 ModuleEntry;
         ZeroMemory(&ModuleEntry, sizeof ModuleEntry);
@@ -60,7 +69,7 @@ namespace WindowsUtils
         {
             do
             {
-                if (!wcscmp(ModuleEntry.szModule, ModuleName))
+                if (!_strcmp_(ModuleEntry.szModule, ModuleName))
                 {
                     CloseHandle(ModuleSnapshot);
                     return ModuleEntry.modBaseAddr;
@@ -109,37 +118,26 @@ namespace WindowsUtils
         return static_cast<Ret>(TrampolinePtr);
     }
 
-    // WIP
-    enum EInjectionMethod
+    inline bool InjectDll(const TCHAR* ProcessName, const TCHAR* DllPath)
     {
-        RemoteThread
-    };
-    
-    template <typename Method>
-    bool InjectDll() {} // Empty Specialization
-
-    template <typename Method = EInjectionMethod::RemoteThread>
-    bool InjectDll(const wchar_t* ProcessName, const wchar_t* DllPath, )
-    {
-        DWORD  ProcessID = FindProcessID(ProcessName);
-        HANDLE ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessID);
+        const DWORD  ProcessID = FindProcessID(ProcessName);
+        const HANDLE ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessID);
 
         if (ProcessHandle == nullptr)
             return false;
 
-        void* AllocMemory = VirtualAlloc(ProcessHandle, strlen(DllPath) + 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        void* AllocMemory = VirtualAlloc(ProcessHandle, _strlen_(DllPath) + 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
         if (AllocMemory == nullptr)
             return false;
 
-        size_t BytesWriten;
-        if (WriteProcessMemory(ProcessID, AllocMemory, DllPath, strlen(DllPath) + 1, &BytesWriten) == false)
+        if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _strlen_(DllPath) + 1, nullptr) == false)
             return false;
 
-        LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary("kernel32"), "LoadLibraryA");
+        const LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary(TEXT("kernel32")), "LoadLibraryA");
 
         DWORD ThreadID;
-        HANDLE ThreadHandle = CreateRemoteThread(ProcessID, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, nullptr, ThreadID);
+        const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
 
         if (ThreadHandle == nullptr)
             return false;
