@@ -124,15 +124,24 @@ namespace WindowsUtils
         const HANDLE ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessID);
 
         if (ProcessHandle == nullptr)
+        {
+            _tprintf(TEXT("[ERROR]: Unable to Open Process for %s (error code %i)"), ProcessName, GetLastError());
             return false;
+        }
 
         void* AllocMemory = VirtualAlloc(ProcessHandle, _strlen_(DllPath) + 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
         if (AllocMemory == nullptr)
+        {
+            _tprintf(TEXT("[ERROR]: Unable to Allocate memory for process (error code %i)"), GetLastError());
             return false;
+        }
 
         if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _strlen_(DllPath) + 1, nullptr) == false)
+        {
+            _tprintf(TEXT("[ERROR]: Unable to write data in memory for process %s at %p address (error code %i)"), ProcessName, &AllocMemory, GetLastError());
             return false;
+        }
 
         const LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary(TEXT("kernel32")), "LoadLibraryA");
 
@@ -140,7 +149,14 @@ namespace WindowsUtils
         const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
 
         if (ThreadHandle == nullptr)
+        WaitForSingleObject(ThreadHandle, INFINITE);
+
+        DWORD ExitCode;
+        if(GetExitCodeThread(ThreadHandle, &ExitCode) == 0)
+        {
+            _tprintf(TEXT("[ERROR]: Unable to create remote thread for process %s (error code %i)"), ProcessName, ExitCode);
             return false;
+        }
 
         return true;
     }
