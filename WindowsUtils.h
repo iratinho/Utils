@@ -146,19 +146,25 @@ namespace WindowsUtils
         const LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary(TEXT("kernel32")), "LoadLibraryA");
 
         DWORD ThreadID;
-        const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
+        const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 1024, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
+
+        if(!ThreadHandle)
+        {
+            _tprintf(TEXT("[ERROR]: Unable to create remote thread for process %s (error code %i)"), ProcessName, GetLastError());
+            return false;
+        }
 
         WaitForSingleObject(ThreadHandle, INFINITE);
 
         DWORD ExitCode;
         if(GetExitCodeThread(ThreadHandle, &ExitCode) == 0)
         {
-            _tprintf(TEXT("[ERROR]: Unable to create remote thread for process %s (error code %i)"), ProcessName, ExitCode);
+            _tprintf(TEXT("[ERROR]: Remote thread error for process %s (error code %i)"), ProcessName, GetLastError());
             return false;
         }
 
         CloseHandle(ThreadHandle);
-        VirtualFreeEx(ProcessHandle, ThreadHandle, 4096, MEM_RELEASE);
+        VirtualFreeEx(ProcessHandle, ThreadHandle, 1024, MEM_RELEASE);
         CloseHandle(ProcessHandle);
 
         return true;
