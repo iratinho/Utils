@@ -164,7 +164,7 @@ namespace WindowsUtils
         }
 
         CloseHandle(ThreadHandle);
-        VirtualFreeEx(ProcessHandle, ThreadHandle, 1024, MEM_RELEASE);
+        VirtualFreeEx(ProcessHandle, AllocMemory, _strlen_(DllPath) * sizeof(TCHAR), MEM_RELEASE);
         CloseHandle(ProcessHandle);
 
         return true;
