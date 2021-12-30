@@ -129,7 +129,7 @@ namespace WindowsUtils
             return false;
         }
 
-        void* AllocMemory = VirtualAlloc(ProcessHandle, _strlen_(DllPath) + 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        void* AllocMemory = VirtualAllocEx(ProcessHandle, nullptr, _strlen_(DllPath) + 1, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
         if (AllocMemory == nullptr)
         {
