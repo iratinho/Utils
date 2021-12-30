@@ -148,7 +148,6 @@ namespace WindowsUtils
         DWORD ThreadID;
         const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 0, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
 
-        if (ThreadHandle == nullptr)
         WaitForSingleObject(ThreadHandle, INFINITE);
 
         DWORD ExitCode;
@@ -157,6 +156,10 @@ namespace WindowsUtils
             _tprintf(TEXT("[ERROR]: Unable to create remote thread for process %s (error code %i)"), ProcessName, ExitCode);
             return false;
         }
+
+        CloseHandle(ThreadHandle);
+        VirtualFreeEx(ProcessHandle, ThreadHandle, 4096, MEM_RELEASE);
+        CloseHandle(ProcessHandle);
 
         return true;
     }
