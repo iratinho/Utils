@@ -129,7 +129,7 @@ namespace WindowsUtils
             return false;
         }
 
-        void* AllocMemory = VirtualAllocEx(ProcessHandle, nullptr, _strlen_(DllPath) + 1, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        void* AllocMemory = VirtualAllocEx(ProcessHandle, nullptr, _strlen_(DllPath) * sizeof(TCHAR), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
         if (AllocMemory == nullptr)
         {
@@ -137,7 +137,7 @@ namespace WindowsUtils
             return false;
         }
 
-        if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _strlen_(DllPath) + 1, nullptr) == false)
+        if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _strlen_(DllPath) * sizeof(TCHAR), nullptr) == false)
         {
             _tprintf(TEXT("[ERROR]: Unable to write data in memory for process %s at %p address (error code %i)"), ProcessName, &AllocMemory, GetLastError());
             return false;
