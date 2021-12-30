@@ -27,11 +27,9 @@ SOFTWARE.
 namespace WindowsUtils
 {
 #ifdef UNICODE
-#define _strlen_(x) wcslen(x)
-#define _strcmp_(x, y) wcscmp(x, y)
+#define LoadLibraryString "LoadLibraryW"
 #else
-#define _strlen_(x) strlen(x)
-#define _strcmp_(x, y) strcmp(x, y)
+#define LoadLibraryString "LoadLibraryA"
 #endif
     
     inline DWORD FindProcessID(const TCHAR* ProcessName)
@@ -46,7 +44,7 @@ namespace WindowsUtils
         {
             do
             {
-                if (!_strcmp_(ProcessEntry.szExeFile, ProcessName))
+                if (!_tcscmp(ProcessEntry.szExeFile, ProcessName))
                 {
                     CloseHandle(ProcessSnapshot);
                     return ProcessEntry.th32ProcessID;
@@ -69,7 +67,7 @@ namespace WindowsUtils
         {
             do
             {
-                if (!_strcmp_(ModuleEntry.szModule, ModuleName))
+                if (!_tcscmp(ModuleEntry.szModule, ModuleName))
                 {
                     CloseHandle(ModuleSnapshot);
                     return ModuleEntry.modBaseAddr;
@@ -129,7 +127,7 @@ namespace WindowsUtils
             return false;
         }
 
-        void* AllocMemory = VirtualAllocEx(ProcessHandle, nullptr, _strlen_(DllPath) * sizeof(TCHAR), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        void* AllocMemory = VirtualAllocEx(ProcessHandle, nullptr, _tcslen(DllPath) * sizeof(TCHAR), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
         if (AllocMemory == nullptr)
         {
@@ -137,13 +135,13 @@ namespace WindowsUtils
             return false;
         }
 
-        if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _strlen_(DllPath) * sizeof(TCHAR), nullptr) == false)
+        if (WriteProcessMemory(ProcessHandle, AllocMemory, DllPath, _tcslen(DllPath) * sizeof(TCHAR), nullptr) == false)
         {
             _tprintf(TEXT("[ERROR]: Unable to write data in memory for process %s at %p address (error code %i)"), ProcessName, &AllocMemory, GetLastError());
             return false;
         }
 
-        const LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary(TEXT("kernel32")), "LoadLibraryA");
+        const LPTHREAD_START_ROUTINE ThreadStartRoutinePtr = (LPTHREAD_START_ROUTINE)GetProcAddress(LoadLibrary(TEXT("kernel32")), LoadLibraryString);
 
         DWORD ThreadID;
         const HANDLE ThreadHandle = CreateRemoteThread(ProcessHandle, nullptr, 1024, ThreadStartRoutinePtr, AllocMemory, 0, &ThreadID);
@@ -164,7 +162,7 @@ namespace WindowsUtils
         }
 
         CloseHandle(ThreadHandle);
-        VirtualFreeEx(ProcessHandle, AllocMemory, _strlen_(DllPath) * sizeof(TCHAR), MEM_RELEASE);
+        VirtualFreeEx(ProcessHandle, AllocMemory, _tcslen(DllPath) * sizeof(TCHAR), MEM_RELEASE);
         CloseHandle(ProcessHandle);
 
         return true;
